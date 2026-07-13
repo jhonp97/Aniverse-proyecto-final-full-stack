@@ -37,7 +37,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
       // aqui envio los datos del login al backend
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: "POST",

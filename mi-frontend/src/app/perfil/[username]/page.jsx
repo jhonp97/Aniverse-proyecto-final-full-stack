@@ -18,7 +18,7 @@ const PerfilPublico = () => {
     const [error, setError] = useState(null);
     const [enviarSolicitud, setEnviarSolicitud] = useState(false)
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
     useEffect(() => {
         const fetchPerfil = async () => {

@@ -31,7 +31,7 @@ const BtnPriv = ({ anime }) => {
         const imageUrl = anime.images?.webp?.large_image_url;
         const genero = anime.genres?.[0]?.name || 'Desconocido';
         const score = anime.score || 0;
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL ;
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
         // aqui depende de que si el esatdo actual es true (si ya esta en favoritos) se elimina al hacer click (DELETE), y si no, lo agrego con POST
         const metodo = isFavorite ? "DELETE" : "POST";

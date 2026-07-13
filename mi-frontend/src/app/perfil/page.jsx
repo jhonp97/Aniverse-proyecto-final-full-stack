@@ -54,7 +54,7 @@ const perfil = () => {
   const { user, token, loading, error, fetchUserData } = useAuth();
   const router = useRouter();
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
   const rutaBackend = apiUrl.replace("/api/v1", ""); //remuevo para obtener la ruta del back y poder acceder a las imagenes que estan en la raiz
   // url para la imagen si se sube, si no usa la que es por defecto
   const fotoPerfilSrc = user?.fotoPerfil?.startsWith("/uploads") // aqui uso startsWith para verificar que la ruta empieza con /uploads
