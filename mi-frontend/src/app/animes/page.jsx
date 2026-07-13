@@ -59,13 +59,21 @@ const Animes = () => {
         );
 
         if (!response.ok) {
-          throw new Error(`error ${response.status} - ${response.statusText}`);
+          // Intento leer el mensaje del backend, pero si no se puede, muestro el status
+          let msg = `Error ${response.status}`;
+          try {
+            const errBody = await response.json();
+            if (errBody && errBody.msg) msg = errBody.msg;
+          } catch (_) {
+            // el backend no devolvio JSON, dejo el mensaje por status
+          }
+          throw new Error(msg);
         }
         const data = await response.json();
 
         // guardo los animes y las paginas disponibles
         setAnimes(data.data || []);
-        setTotalPages(data.pagination.last_visible_page);
+        setTotalPages(data.pagination?.last_visible_page ?? 1);
 
       } catch (error) {
         console.error(`No se pudo cargar el archivo, error:`, error);
