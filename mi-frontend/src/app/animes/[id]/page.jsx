@@ -13,7 +13,54 @@ import Link from "next/link";
 import { FaPlay } from "react-icons/fa"; //icono de play
 
 
+// Detalle de un anime.
+// Antes fetcheaba directo a Jikan, pero Jikan esta caido en endpoints puntuales
+// cuando se hacen muchas requests. Ahora uso AniList GraphQL directo desde el browser
+// (permite CORS) y mapeo la respuesta al mismo formato Jikan-like que usa el resto
+// de la UI (images.jpg.large_image_url, genres como objetos, aired.string, etc).
+const ANILIST_URL = "https://graphql.anilist.co";
 
+const ANILIST_STATUS = {
+  RELEASING: "Currently Airing",
+  FINISHED: "Finished Airing",
+  NOT_YET_RELEASED: "Not yet aired",
+  CANCELLED: "Cancelled",
+  HIATUS: "On Hiatus",
+};
+
+const ANILIST_FORMAT = {
+  TV: "TV", MOVIE: "Movie", OVA: "OVA", ONA: "ONA", SPECIAL: "Special", MUSIC: "Music",
+};
+
+function formatStartDate(d) {
+  if (!d || !d.year) return "Desconocida";
+  const meses = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const m = d.month ? meses[d.month - 1] : "?";
+  const day = d.day || "?";
+  return `${m} ${day}, ${d.year}`;
+}
+
+function anilistADetail(item) {
+  return {
+    mal_id: item.idMal || item.id,
+    title: item.title.english || item.title.romaji || "Sin titulo",
+    images: {
+      jpg: {
+        large_image_url: item.coverImage.large,
+        image_url: item.coverImage.large,
+      },
+    },
+    score: item.averageScore ? item.averageScore / 10 : null,
+    genres: (item.genres || []).map((g) => ({ name: g })),
+    episodes: item.episodes || null,
+    type: ANILIST_FORMAT[item.format] || item.format || "Desconocido",
+    status: ANILIST_STATUS[item.status] || item.status || "Desconocido",
+    aired: { string: formatStartDate(item.startDate) },
+    synopsis: item.description || "Sin sinopsis disponible.",
+    url: item.idMal ? `https://myanimelist.net/anime/${item.idMal}` : null,
+    trailer: { embed_url: null, images: { maximum_image_url: null } }, // AniList no expone trailer embed
+  };
+}
 
 export default function AnimeDetail() {
   // obtengo el ID del anime desde la url
@@ -23,13 +70,36 @@ export default function AnimeDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    //funcion para obtener los datos del anime
     const fetchAnime = async () => {
       try {
-        const res = await fetch(`https://api.jikan.moe/v4/anime/${id}`);
-        const data = await res.json();
-        console.log(data) // muestro los datos de la API en consola
-        setAnime(data.data); // almaceno los detalles del anime en el estado
+        // AniList acepta el MAL ID o su propio ID. El frontend probablemente pasa el MAL ID.
+        const query = `
+          query ($id: Int) {
+            Media(id: $id, type: ANIME) {
+              id idMal
+              title { romaji english }
+              coverImage { large }
+              averageScore
+              genres
+              episodes
+              status
+              format
+              startDate { year month day }
+              description(asHtml: false)
+            }
+          }
+        `;
+        const res = await fetch(ANILIST_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Accept": "application/json" },
+          body: JSON.stringify({ query, variables: { id: parseInt(id, 10) } }),
+        });
+        const json = await res.json();
+        if (json.errors) {
+          setError("No se encontro el anime.");
+        } else {
+          setAnime(anilistADetail(json.data.Media));
+        }
       } catch (err) {
         setError("No se pudo cargar el anime.");
       } finally {
@@ -38,16 +108,14 @@ export default function AnimeDetail() {
     };
 
     fetchAnime();
-  }, [id]); // se ejecuta cada que el ID cambia
+  }, [id]);
 
-  // Si la aplicación está cargando, muestro un componente de carga
   if (loading) {
     return (
       <Loading />
     );
   }
 
-    // por si hay un error o no se pudo cargar el anime
   if (error || !anime) {
     return (
       <section className="p-10 text-center text-white bg-red-800">
@@ -66,7 +134,7 @@ export default function AnimeDetail() {
           anime.images?.jpg?.large_image_url
         }
         title={anime.title}
-        subtitle={`${anime.rating} — ${anime.status}`}
+        subtitle={`${anime.type || ""} — ${anime.status || ""}`}
       />
 
       <div className="container mx-auto px-4 py-8">
@@ -76,8 +144,8 @@ export default function AnimeDetail() {
           <div className="lg:col-span-2">
             <div className="flex flex-col md:flex-row gap-6 mb-8">
               <Image
-                src={anime.images.jpg.large_image_url}
-                alt={anime.title}
+                src={anime.images?.jpg?.large_image_url || "/img/avatar1.png"}
+                alt={anime.title || "anime"}
                 width={300}
                 height={450}
                 quality={100}
@@ -88,9 +156,9 @@ export default function AnimeDetail() {
                 <h1 className="text-4xl font-bold mb-4">{anime.title}</h1>
 
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {anime.genres.map((genre) => (
+                  {(anime.genres || []).map((genre, i) => (
                     <span
-                      key={genre.mal_id}
+                      key={i}
                       className="bg-purple-600 px-3 py-1 rounded-full text-sm"
                     >
                       {genre.name}
@@ -100,21 +168,20 @@ export default function AnimeDetail() {
 
                 <div className="flex flex-wrap items-center gap-4 mb-4 text-gray-300">
                   <p><strong>Tipo:</strong> {anime.type}</p>
-                  <p><strong>Episodios:</strong> {anime.episodes}</p>
+                  <p><strong>Episodios:</strong> {anime.episodes || "?"}</p>
                   <p><strong>Estado:</strong> {anime.status}</p>
-                  <p><strong>Fecha:</strong> {anime.aired.string}</p>
+                  <p><strong>Fecha:</strong> {anime.aired?.string || "?"}</p>
                   <p><strong>Calificación:</strong> ⭐ {anime.score ?? "No disponible"}</p>
                 </div>
 
-                {/* esto lo hago porque muchas sinopsis son demasiados largas y me dañan un poco la visualizacion de la pagina entonces lo pongo que se muestre hasta el quinto punto para muestre lo justo */}
                 <p className="text-gray-300 leading-relaxed mb-6">
-                  {anime.synopsis
+                  {(anime.synopsis || "Sin sinopsis")
                     ?.split('.')
                     .slice(0, 5)
                     .join('.') + '.'}
                 </p>
 
-                {/* boton para ver los capitulos*/}
+                {/* boton para ver en MAL */}
                 {anime.url && (
                   <Link
                     href={anime.url}
@@ -122,27 +189,25 @@ export default function AnimeDetail() {
                     rel="noopener noreferrer"
                     className="mb-4 mr-4 inline-flex items-center gap-2 bg-cyan-600 text-white font-bold px-5 py-3 rounded-lg hover:bg-cyan-700 transition-colors duration-300"
                   >
-                    <FaPlay /> {/* icono de Play */}
+                    <FaPlay />
                     Ver en MyAnimeList
                   </Link>
                 )}
 
                 {/* BOTONES DE ACCION */}
                 <div className="flex gap-4 mt-4">
-                {/* boton de favoritos */}
-                <div className="bg-gray-700 p-2 rounded-lg inline-flex  items-center">
-                  <FavoritoBtn anime={anime} />
-                </div>
-                <div className="bg-gray-700 p-2 rounded-lg inline-flex items-center" title="Añadir a Lista Privada">
-                  <BtnPriv anime={anime}/>
-                </div>
-
+                  <div className="bg-gray-700 p-2 rounded-lg inline-flex items-center">
+                    <FavoritoBtn anime={anime} />
+                  </div>
+                  <div className="bg-gray-700 p-2 rounded-lg inline-flex items-center" title="Añadir a Lista Privada">
+                    <BtnPriv anime={anime}/>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/*  Trailer */}
+          {/*  Trailer (AniList no expone trailer embed, queda el slot vacio por ahora) */}
           <div>
             {anime.trailer?.embed_url && (
               <div className="bg-gray-800 rounded-lg p-6">

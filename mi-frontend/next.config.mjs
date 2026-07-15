@@ -8,6 +8,10 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 's4.anilist.co', // CDN de AniList (fuente actual de los animes)
+      },
+      {
+        protocol: 'https',
         hostname: 'img.youtube.com',
       },
       {
@@ -21,7 +25,7 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'aniverse-api-g15y.onrender.com', // mi enlace de vercel
-        port: '', 
+        port: '',
         pathname: '/uploads/**',
       },
     ],
