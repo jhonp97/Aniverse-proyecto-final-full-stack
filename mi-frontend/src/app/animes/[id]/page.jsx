@@ -72,10 +72,11 @@ export default function AnimeDetail() {
   useEffect(() => {
     const fetchAnime = async () => {
       try {
-        // AniList acepta el MAL ID o su propio ID. El frontend probablemente pasa el MAL ID.
+        // El `id` que viene en la URL es el MAL ID (no el AniList ID).
+        // Usamos el filtro `idMal` de AniList para buscar por MAL ID.
         const query = `
-          query ($id: Int) {
-            Media(id: $id, type: ANIME) {
+          query ($idMal: Int) {
+            Media(idMal: $idMal, type: ANIME) {
               id idMal
               title { romaji english }
               coverImage { large }
@@ -92,10 +93,10 @@ export default function AnimeDetail() {
         const res = await fetch(ANILIST_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Accept": "application/json" },
-          body: JSON.stringify({ query, variables: { id: parseInt(id, 10) } }),
+          body: JSON.stringify({ query, variables: { idMal: parseInt(id, 10) } }),
         });
         const json = await res.json();
-        if (json.errors) {
+        if (json.errors || !json.data?.Media) {
           setError("No se encontro el anime.");
         } else {
           setAnime(anilistADetail(json.data.Media));
