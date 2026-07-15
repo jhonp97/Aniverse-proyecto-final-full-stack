@@ -26,8 +26,8 @@ const Animes = () => {
   const [filtro, setFiltro] = useState({
     name: "", // nombre del anime
     status: "", //  estado, ej: completado
-    genres: "", // número de género 
-    order_by: "", // para ordenar por puntuación
+    genres: "", // número de género
+    order_by: "popularity", // arrancamos con "popularity" para que el /animes muestre contenido distinto del home (que es top score)
     sort: "desc", // orden descendente
   });
 
